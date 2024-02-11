@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Shopping Cart
+{% endblock %}
+
+{% block content %}
+    <h1>Shopping Cart</h1>
+    <ul>
+        {% for product_id, quantity in cart.items() %}
+            <li>Product ID: {{ product_id }}, Quantity: {{ quantity }}</li>
+        {% endfor %}
+    </ul>
+{% endblock %}
