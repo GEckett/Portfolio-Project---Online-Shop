@@ -1,3 +1,6 @@
+import os
+
+import stripe
 from flask import Flask, jsonify, render_template, request, url_for, redirect, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_bootstrap import Bootstrap5
@@ -136,28 +139,99 @@ def logout():
 def profile():
     return render_template('profile.html')
 
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.get_or_404(User, user_id)
 
-@app.route('/add_to_cart', methods=['POST'])
+
+@app.route('/add_to_cart', methods=["POST"])
 def add_to_cart():
-    product_id = request.form['product_id']
-    quantity = int(request.form['quantity'])
+    product_id = request.form.get('product_id')
+    quantity = int(request.form.get('quantity'))
 
     if 'cart' not in session:
-        session['cart'] = {}
+        session['cart'] = {}  # Initialize cart as a dictionary if it doesn't exist
 
-    if product_id in session['cart']:
-        session['cart'][product_id] += quantity
+    cart = session['cart']  # Retrieve the cart from session
+
+    # Update the quantity for the given product_id in the cart
+    if product_id in cart:
+        cart[product_id] += quantity
     else:
-        session['cart'][product_id] = quantity
-    print(session['cart'])
-    return redirect(url_for('view_cart'))
+        cart[product_id] = quantity
+
+    session['cart'] = cart  # Update the cart in the session
+
+    flash("Item added to cart")
+    print(cart)
+    return redirect(url_for('view_cart', cart=session.get('cart', {})))
+
 
 @app.route('/view_cart')
 def view_cart():
-    return render_template('cart.html', cart=session.get('cart', {}))
+    cart = session.get('cart', {})  # Retrieve the cart data from the session
+
+    # Fetch product details for items in the cart
+    cart_items = []
+    basket_total = 0
+    for product_id, quantity in cart.items():
+        product = Products.query.get(product_id)
+        if product:
+            # Remove currency symbol and convert price to float
+            price = int(product.price.replace('£', ''))  # Assuming the currency symbol is '£'
+            item_total = price * quantity
+            cart_items.append({
+                'product_id': product_id,
+                'product_name': product.product_name,
+                'img_url': product.img_url,
+                'quantity': quantity,
+                'price': price,
+                'total': item_total
+            })
+            basket_total += item_total
+
+    return render_template('cart.html', cart=cart_items, total_items=sum(cart.values()), basket_total=basket_total)
+
+
+@app.route('/checkout', methods=['GET', 'POST'])
+@login_required
+def checkout():
+    if request.method == 'POST':
+        # Get the amount to charge from the form data
+        amount = request.form['total']
+
+        # Create a charge using the Stripe API
+        try:
+            stripe.api_key = os.environ.get("Stripe_APIKEY")
+            stripe.Charge.create(
+                amount=amount,
+                currency='gbp',
+                source="tok_visa",
+                description='Example charge'
+            )
+            # Handle successful payment
+            return render_template('success.html')
+        except stripe.error.StripeError as e:
+            # Handle errors
+            return render_template('error.html', error=str(e))
+
+    # If it's a GET request, render the checkout form
+    return render_template('checkout.html', STRIPE_PUBLIC_KEY=os.environ.get("Stripe_Publish"))
+
+
+@app.route('/Success')
+def payment_success():
+    for item in session["cart"]:
+        product = Products.query.get(item)
+        product.stock_volume -= 1
+        db.session.commit()
+    # newOrder = Order(customer=current_user,
+    #     )
+    # db.session.add(newOrder)
+    # db.session.commit()
+    session.pop('cart', None)
+    return render_template('Success.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

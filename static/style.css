@@ -239,3 +239,38 @@ button:hover {
     margin-bottom: 5px; /* Add space between flash messages */
 }
 
+
+/* cart.css */
+
+.cart-items {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.cart-item {
+    display: flex;
+    align-items: center;
+    border: 1px solid #ccc;
+    padding: 10px;
+}
+
+.product-image img {
+    width: 100px; /* Adjust the width as needed */
+    height: 100px;
+    margin-right: 20px;
+}
+
+.product-details {
+    flex-grow: 1;
+}
+
+.product-name {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.product-details-inline {
+    margin: 0;
+    font-size: 14px; /* Adjust font size as needed */
+}
